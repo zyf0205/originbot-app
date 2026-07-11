@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../models/robot_status.dart';
+import '../config/ip_history.dart';
 
 class ControlService extends ChangeNotifier {
   ControlService(this.status);
@@ -14,7 +15,7 @@ class ControlService extends ChangeNotifier {
   WebSocketChannel? _channel;
   Timer? _publishTimer;
   bool _disposed = false;
-  String _ip = '';
+  String _ip = IpHistory.lastIp;
 
   double _inputX = 0.0;
   double _inputY = 0.0;
@@ -97,12 +98,6 @@ class ControlService extends ChangeNotifier {
             vx: (data['vx'] as num?)?.toDouble(),
             vy: (data['vy'] as num?)?.toDouble(),
             vth: (data['vth'] as num?)?.toDouble(),
-          );
-        case 'imu':
-          status.updateImu(
-            roll: (data['roll'] as num?)?.toDouble(),
-            pitch: (data['pitch'] as num?)?.toDouble(),
-            yaw: (data['yaw'] as num?)?.toDouble(),
           );
         case 'error':
           status.controlErrorMsg = data['msg']?.toString() ?? '未知错误';

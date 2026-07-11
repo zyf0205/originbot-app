@@ -1,12 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
+import 'config/ip_history.dart';
 import 'models/robot_status.dart';
 import 'screens/home_screen.dart';
 import 'services/control_service.dart';
 import 'services/video_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await IpHistory.init();
   runApp(const OriginBotApp());
 }
 

@@ -14,10 +14,6 @@ class RobotStatus extends ChangeNotifier {
   double vy = 0.0;
   double vth = 0.0;
 
-  double roll = 0.0;
-  double pitch = 0.0;
-  double yaw = 0.0;
-
   String controlErrorMsg = '';
   String videoErrorMsg = '';
 
@@ -50,13 +46,6 @@ class RobotStatus extends ChangeNotifier {
     if (vx != null) this.vx = vx;
     if (vy != null) this.vy = vy;
     if (vth != null) this.vth = vth;
-    notifyListeners();
-  }
-
-  void updateImu({double? roll, double? pitch, double? yaw}) {
-    if (roll != null) this.roll = roll;
-    if (pitch != null) this.pitch = pitch;
-    if (yaw != null) this.yaw = yaw;
     notifyListeners();
   }
 }

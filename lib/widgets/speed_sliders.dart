@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Material, MaterialType, Slider, SliderTheme, SliderThemeData, RoundSliderThumbShape, RoundSliderOverlayShape;
 import 'package:provider/provider.dart';
 
 import '../models/robot_status.dart';
@@ -83,12 +84,26 @@ class _CompactSlider extends StatelessWidget {
           ],
         ),
         SizedBox(
-          height: 28,
-          child: CupertinoSlider(
-            value: value,
-            min: 0.0,
-            max: max,
-            onChanged: onChanged,
+          height: 24,
+          child: Material(
+            type: MaterialType.transparency,
+            child: SliderTheme(
+              data: const SliderThemeData(
+                trackHeight: 3,
+                activeTrackColor: Color(0xFF2563A8),
+                inactiveTrackColor: Color(0xFFD8D8DC),
+                thumbColor: Color(0xFF2563A8),
+                overlayColor: Color(0x1F2563A8),
+                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
+                overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
+              ),
+              child: Slider(
+                value: value,
+                min: 0.0,
+                max: max,
+                onChanged: onChanged,
+              ),
+            ),
           ),
         ),
       ],

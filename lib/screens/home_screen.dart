@@ -11,15 +11,58 @@ import '../widgets/speed_sliders.dart';
 import '../widgets/status_panel.dart';
 import '../widgets/video_view.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late final TextEditingController _ipCtrl;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _ipCtrl = TextEditingController(text: context.read<ControlService>().ip);
+  }
+
+  @override
+  void dispose() {
+    _ipCtrl.dispose();
+    super.dispose();
+  }
+
+  void _connect() {
+    final ip = _ipCtrl.text.trim();
+    final control = context.read<ControlService>();
+    final err = control.validateIp(ip);
+    if (err != null) {
+      setState(() => _error = err);
+      return;
+    }
+    setState(() => _error = null);
+    final video = context.read<VideoService>();
+    control.setIp(ip);
+    video.setIp(ip);
+    IpHistory.add(ip);
+    control.connect();
+    video.connect();
+  }
+
+  void _disconnect() {
+    context.read<ControlService>().disconnect();
+    context.read<VideoService>().disconnect();
+  }
 
   @override
   Widget build(BuildContext context) {
     final status = context.watch<RobotStatus>();
-    final control = context.watch<ControlService>();
     final isConnected = status.controlStatus == ConnectionStatus.connected ||
         status.videoStatus == ConnectionStatus.connected;
+    final connecting = status.controlStatus == ConnectionStatus.connecting ||
+        status.videoStatus == ConnectionStatus.connecting;
 
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
@@ -30,12 +73,9 @@ class HomeScreen extends StatelessWidget {
             const ConnectionIndicator(),
             const SizedBox(width: 12),
             GestureDetector(
-              onTap: isConnected
-                  ? () {
-                      control.disconnect();
-                      context.read<VideoService>().disconnect();
-                    }
-                  : () => _connectAll(context),
+              onTap: connecting
+                  ? null
+                  : (isConnected ? _disconnect : _connect),
               child: Icon(
                 CupertinoIcons.power,
                 size: 22,
@@ -50,18 +90,15 @@ class HomeScreen extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            const _ConnectionCard(),
+            _buildConnectionCard(connecting),
             const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: const AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [VideoView()],
-                  ),
+            Expanded(
+              flex: 5,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: const VideoView(),
                 ),
               ),
             ),
@@ -69,6 +106,7 @@ class HomeScreen extends StatelessWidget {
             const StatusPanel(),
             const SizedBox(height: 8),
             const Expanded(
+              flex: 3,
               child: _ControlArea(),
             ),
           ],
@@ -77,122 +115,39 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  void _connectAll(BuildContext context) {
-    final ip = context.read<ControlService>().ip;
-    if (ip.isEmpty) return;
-    context.read<VideoService>().setIp(ip);
-    context.read<ControlService>().connect();
-    context.read<VideoService>().connect();
-  }
-}
-
-class _ControlArea extends StatelessWidget {
-  const _ControlArea();
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildConnectionCard(bool connecting) {
     return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Expanded(
-            flex: 5,
-            child: JoystickControl(),
-          ),
-          const SizedBox(width: 12),
-          const Expanded(
-            flex: 4,
-            child: SpeedSliders(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConnectionCard extends StatefulWidget {
-  const _ConnectionCard();
-
-  @override
-  State<_ConnectionCard> createState() => _ConnectionCardState();
-}
-
-class _ConnectionCardState extends State<_ConnectionCard> {
-  late final TextEditingController _ipCtrl;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    final saved = context.read<ControlService>().ip;
-    _ipCtrl = TextEditingController(text: saved);
-  }
-
-  @override
-  void dispose() {
-    _ipCtrl.dispose();
-    super.dispose();
-  }
-
-  void _connect() {
-    final ip = _ipCtrl.text.trim();
-    final err = context.read<ControlService>().validateIp(ip);
-    if (err != null) {
-      setState(() => _error = err);
-      return;
-    }
-    setState(() => _error = null);
-    IpHistory.add(ip);
-    final control = context.read<ControlService>();
-    final video = context.read<VideoService>();
-    control.setIp(ip);
-    video.setIp(ip);
-    control.connect();
-    video.connect();
-  }
-
-  void _disconnect() {
-    context.read<ControlService>().disconnect();
-    context.read<VideoService>().disconnect();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final status = context.watch<RobotStatus>();
-    final cs = status.controlStatus;
-    final connected =
-        cs == ConnectionStatus.connected || status.videoStatus == ConnectionStatus.connected;
-    final connecting =
-        cs == ConnectionStatus.connecting || status.videoStatus == ConnectionStatus.connecting;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+      margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(14),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+        border: Border.fromBorderSide(
+          BorderSide(color: Color(0x99E8E8EC), width: 0.6),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
+              Icon(
+                CupertinoIcons.wifi,
+                size: 16,
+                color: const Color(0xFF8E8E93),
+              ),
+              const SizedBox(width: 6),
               Expanded(
                 child: CupertinoTextField(
                   controller: _ipCtrl,
-                  placeholder: '机器人 IP',
+                  placeholder: '机器人 IP 地址',
                   keyboardType: TextInputType.url,
                   autocorrect: false,
                   enabled: !connecting,
+                  prefix: const SizedBox(width: 2),
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
+                    horizontal: 8,
+                    vertical: 7,
                   ),
                   decoration: BoxDecoration(
                     color: CupertinoColors.systemGrey6,
@@ -209,32 +164,10 @@ class _ConnectionCardState extends State<_ConnectionCard> {
                     color: CupertinoColors.systemGrey,
                     fontSize: 14,
                   ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: connecting
-                    ? null
-                    : (connected ? _disconnect : _connect),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: connected
-                        ? CupertinoColors.systemRed
-                        : CupertinoColors.activeBlue,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    connecting ? '…' : (connected ? '断开' : '连接'),
-                    style: const TextStyle(
-                      color: CupertinoColors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+                  onChanged: (text) {
+                    context.read<ControlService>().setIp(text);
+                    if (_error != null) setState(() => _error = null);
+                  },
                 ),
               ),
             ],
@@ -243,7 +176,7 @@ class _ConnectionCardState extends State<_ConnectionCard> {
             Align(
               alignment: Alignment.centerLeft,
               child: Padding(
-                padding: const EdgeInsets.only(top: 4),
+                padding: const EdgeInsets.only(top: 4, left: 22),
                 child: Text(
                   _error!,
                   style: const TextStyle(
@@ -253,6 +186,39 @@ class _ConnectionCardState extends State<_ConnectionCard> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ControlArea extends StatelessWidget {
+  const _ControlArea();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 4),
+      padding: const EdgeInsets.all(10),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFAFAFA),
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+        border: Border.fromBorderSide(
+          BorderSide(color: Color(0x99E8E8EC), width: 0.6),
+        ),
+      ),
+      child: const Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            flex: 5,
+            child: JoystickControl(),
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            flex: 4,
+            child: SpeedSliders(),
+          ),
         ],
       ),
     );

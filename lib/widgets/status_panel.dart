@@ -13,37 +13,19 @@ class StatusPanel extends StatelessWidget {
     final connected = status.controlStatus == ConnectionStatus.connected;
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(14),
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: _cardDecoration,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           _BatteryRow(voltage: status.batteryVoltage),
           const SizedBox(height: 6),
-          Row(
-            children: [
-              Expanded(
-                child: _InfoChip(
-                  icon: CupertinoIcons.speedometer,
-                  text: !connected
-                      ? '--'
-                      : '${status.vx.toStringAsFixed(2)} m/s  ${status.vth.toStringAsFixed(2)} r/s',
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _InfoChip(
-                  icon: CupertinoIcons.location,
-                  text: !connected
-                      ? '--'
-                      : 'R${status.roll.toStringAsFixed(1)}° P${status.pitch.toStringAsFixed(1)}° Y${status.yaw.toStringAsFixed(1)}°',
-                ),
-              ),
-            ],
+          _InfoChip(
+            icon: CupertinoIcons.speedometer,
+            text: !connected
+                ? '--'
+                : '${status.vx.toStringAsFixed(2)} m/s  ${status.vth.toStringAsFixed(2)} r/s',
           ),
           const SizedBox(height: 8),
           Row(
@@ -70,6 +52,21 @@ class StatusPanel extends StatelessWidget {
     );
   }
 }
+
+const _cardDecoration = BoxDecoration(
+  color: Color(0xFFFAFAFA),
+  borderRadius: BorderRadius.all(Radius.circular(14)),
+  border: Border.fromBorderSide(
+    BorderSide(color: Color(0x99E8E8EC), width: 0.6),
+  ),
+  boxShadow: [
+    BoxShadow(
+      color: Color(0x14000000),
+      blurRadius: 6,
+      offset: Offset(0, 2),
+    ),
+  ],
+);
 
 class _BatteryRow extends StatelessWidget {
   const _BatteryRow({required this.voltage});
@@ -135,7 +132,7 @@ class _InfoChip extends StatelessWidget {
   }
 }
 
-class _ToggleChip extends StatelessWidget {
+class _ToggleChip extends StatefulWidget {
   const _ToggleChip({
     required this.label,
     required this.active,
@@ -149,30 +146,64 @@ class _ToggleChip extends StatelessWidget {
   final bool enabled;
 
   @override
+  State<_ToggleChip> createState() => _ToggleChipState();
+}
+
+class _ToggleChipState extends State<_ToggleChip> {
+  bool _pressed = false;
+
+  void _setPressed(bool v) {
+    if (_pressed != v) setState(() => _pressed = v);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: !enabled
-              ? const Color(0xFFF2F2F7)
-              : active
-                  ? const Color(0xFF2563A8).withValues(alpha: 0.1)
-                  : const Color(0xFFE8E8EC),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          '$label ${active ? '开' : '关'}',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w500,
-            color: !enabled
-                ? const Color(0xFFAEAEB2)
-                : active
-                    ? const Color(0xFF2563A8)
-                    : const Color(0xFF8E8E93),
+    final enabled = widget.enabled;
+    final active = widget.active;
+    return Expanded(
+      child: GestureDetector(
+        onTapDown: enabled ? (_) => _setPressed(true) : null,
+        onTapUp: enabled ? (_) => _setPressed(false) : null,
+        onTapCancel: () => _setPressed(false),
+        onTap: enabled ? widget.onTap : null,
+        child: AnimatedScale(
+          scale: _pressed ? 0.94 : 1.0,
+          duration: const Duration(milliseconds: 80),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 80),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: !enabled
+                  ? const Color(0xFFF2F2F7)
+                  : active
+                      ? const Color(0xFF2563A8).withValues(alpha: 0.12)
+                      : const Color(0xFFEFEFF2),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: !enabled
+                    ? const Color(0x00000000)
+                    : active
+                        ? const Color(0xFF2563A8).withValues(alpha: 0.4)
+                        : const Color(0xFFD8D8DC),
+                width: 0.6,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                '${widget.label} ${active ? '开' : '关'}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  color: !enabled
+                      ? const Color(0xFFAEAEB2)
+                      : active
+                          ? const Color(0xFF2563A8)
+                          : const Color(0xFF8E8E93),
+                ),
+              ),
+            ),
           ),
         ),
       ),
