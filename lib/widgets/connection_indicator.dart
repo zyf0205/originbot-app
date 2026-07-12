@@ -14,13 +14,18 @@ class ConnectionIndicator extends StatelessWidget {
     final vs = context.select<RobotStatus, ConnectionStatus>(
       (s) => s.videoStatus,
     );
+    final ls = context.select<RobotStatus, ConnectionStatus>(
+      (s) => s.lidarStatus,
+    );
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         _Dot(color: _color(cs)),
-        const SizedBox(width: 6),
+        const SizedBox(width: 5),
         _Dot(color: _color(vs)),
+        const SizedBox(width: 5),
+        _Dot(color: _color(ls)),
       ],
     );
   }

@@ -95,6 +95,12 @@ class ControlService extends ChangeNotifier {
           );
         case 'odom':
           status.updateOdom(
+            x: (data['x'] as num?)?.toDouble(),
+            y: (data['y'] as num?)?.toDouble(),
+            qx: (data['qx'] as num?)?.toDouble(),
+            qy: (data['qy'] as num?)?.toDouble(),
+            qz: (data['qz'] as num?)?.toDouble(),
+            qw: (data['qw'] as num?)?.toDouble(),
             vx: (data['vx'] as num?)?.toDouble(),
             vy: (data['vy'] as num?)?.toDouble(),
             vth: (data['vth'] as num?)?.toDouble(),

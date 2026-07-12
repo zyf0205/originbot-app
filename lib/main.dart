@@ -5,6 +5,7 @@ import 'config/ip_history.dart';
 import 'models/robot_status.dart';
 import 'screens/home_screen.dart';
 import 'services/control_service.dart';
+import 'services/lidar_service.dart';
 import 'services/video_service.dart';
 
 void main() async {
@@ -26,6 +27,9 @@ class OriginBotApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (ctx) => VideoService(ctx.read<RobotStatus>()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => LidarService(ctx.read<RobotStatus>()),
         ),
       ],
       child: CupertinoApp(

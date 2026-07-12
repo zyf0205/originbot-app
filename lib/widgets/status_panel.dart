@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 
@@ -26,6 +28,13 @@ class StatusPanel extends StatelessWidget {
             text: !connected
                 ? '--'
                 : '${status.vx.toStringAsFixed(2)} m/s  ${status.vth.toStringAsFixed(2)} r/s',
+          ),
+          const SizedBox(height: 4),
+          _InfoChip(
+            icon: CupertinoIcons.location,
+            text: !connected
+                ? '--'
+                : '${status.odomX.toStringAsFixed(2)}m, ${status.odomY.toStringAsFixed(2)}m  ${(status.odomYaw * 180 / math.pi).toStringAsFixed(1)}°',
           ),
           const SizedBox(height: 8),
           Row(
