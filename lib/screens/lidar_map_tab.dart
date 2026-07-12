@@ -25,7 +25,6 @@ class _LidarMapTabState extends State<LidarMapTab> {
 
   @override
   Widget build(BuildContext context) {
-    final lidar = context.watch<LidarService>();
     final lidarStatus = context.select<RobotStatus, ConnectionStatus>(
       (s) => s.lidarStatus,
     );
@@ -45,29 +44,14 @@ class _LidarMapTabState extends State<LidarMapTab> {
           },
           child: ColoredBox(
             color: const Color(0xFFF8F8FA),
-            child: RepaintBoundary(
-              child: CustomPaint(
-                painter: PointCloudPainter(
-                  points: lidar.points,
-                  scale: _scale,
-                  rangeMin: lidar.rangeMin,
-                  rangeMax: lidar.rangeMax,
-                ),
-                child: const SizedBox.expand(),
-              ),
-            ),
+            child: _PointCloudView(scale: _scale),
           ),
         ),
         Positioned(
           bottom: 12,
           left: 12,
           right: 12,
-          child: _InfoBar(
-            pointCount: lidar.points.length,
-            rangeMin: lidar.rangeMin,
-            rangeMax: lidar.rangeMax,
-            scale: _scale,
-          ),
+          child: _LidarInfoBar(scale: _scale),
         ),
         Positioned(
           top: 12,
@@ -78,6 +62,43 @@ class _LidarMapTabState extends State<LidarMapTab> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PointCloudView extends StatelessWidget {
+  const _PointCloudView({required this.scale});
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final lidar = context.watch<LidarService>();
+    return RepaintBoundary(
+      child: CustomPaint(
+        painter: PointCloudPainter(
+          points: lidar.points,
+          scale: scale,
+          rangeMin: lidar.rangeMin,
+          rangeMax: lidar.rangeMax,
+        ),
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+}
+
+class _LidarInfoBar extends StatelessWidget {
+  const _LidarInfoBar({required this.scale});
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final lidar = context.watch<LidarService>();
+    return _InfoBar(
+      pointCount: lidar.points.length,
+      rangeMin: lidar.rangeMin,
+      rangeMax: lidar.rangeMax,
+      scale: scale,
     );
   }
 }

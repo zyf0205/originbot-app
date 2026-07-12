@@ -92,9 +92,15 @@ class TrajectoryPainter extends CustomPainter {
 
     canvas.drawCircle(center, 6.0, paint);
 
-    final arrowLength = 14.0;
-    final dx = -arrowLength * math.sin(robotYaw);
-    final dy = -arrowLength * math.cos(robotYaw);
+    // Direction vector for arrow (unit vector in yaw direction)
+    final dirX = -math.sin(robotYaw);
+    final dirY = -math.cos(robotYaw);
+
+    // Arrow starts at ball edge (radius=6) and extends to tip (length=14 from center)
+    final startX = center.dx + 6.0 * dirX;
+    final startY = center.dy + 6.0 * dirY;
+    final endX = center.dx + 14.0 * dirX;
+    final endY = center.dy + 14.0 * dirY;
 
     final arrowPaint = Paint()
       ..color = const Color(0xFFD32F2F)
@@ -103,8 +109,8 @@ class TrajectoryPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(
-      center,
-      Offset(center.dx + dx, center.dy + dy),
+      Offset(startX, startY),
+      Offset(endX, endY),
       arrowPaint,
     );
   }

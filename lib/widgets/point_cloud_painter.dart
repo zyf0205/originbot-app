@@ -84,8 +84,9 @@ class PointCloudPainter extends CustomPainter {
       ..color = const Color(0xFF2563A8)
       ..strokeWidth = 2.0
       ..style = PaintingStyle.stroke;
+    // Arrow starts from circle edge (radius=5), not from center
     final path = Path()
-      ..moveTo(center.dx, center.dy)
+      ..moveTo(center.dx, center.dy - 5.0)
       ..lineTo(center.dx, center.dy - 12);
     canvas.drawPath(path, arrowPaint);
 

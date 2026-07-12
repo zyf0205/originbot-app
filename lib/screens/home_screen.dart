@@ -23,18 +23,42 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final TextEditingController _ipCtrl;
+  late final CupertinoTabController _tabController;
   String? _error;
 
   @override
   void initState() {
     super.initState();
     _ipCtrl = TextEditingController(text: context.read<ControlService>().ip);
+    _tabController = CupertinoTabController();
+    _tabController.addListener(_onTabChanged);
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_onTabChanged);
+    _tabController.dispose();
     _ipCtrl.dispose();
     super.dispose();
+  }
+
+  void _onTabChanged() {
+    final index = _tabController.index;
+    final control = context.read<ControlService>();
+    final video = context.read<VideoService>();
+
+    if (control.status.controlStatus != ConnectionStatus.connected) return;
+
+    if (index == 0) {
+      if (video.status.videoStatus == ConnectionStatus.disconnected ||
+          video.status.videoStatus == ConnectionStatus.error) {
+        video.connect();
+      }
+    } else {
+      if (video.status.videoStatus == ConnectionStatus.connected) {
+        video.disconnect();
+      }
+    }
   }
 
   void _connect() {
@@ -74,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
         status.lidarStatus == ConnectionStatus.connecting;
 
     return CupertinoTabScaffold(
+      controller: _tabController,
       tabBar: CupertinoTabBar(
         items: const [
           BottomNavigationBarItem(
