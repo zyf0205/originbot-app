@@ -7,7 +7,6 @@ enum ConnectionStatus { disconnected, connecting, connected, error }
 
 class RobotStatus extends ChangeNotifier {
   ConnectionStatus controlStatus = ConnectionStatus.disconnected;
-  ConnectionStatus videoStatus = ConnectionStatus.disconnected;
   ConnectionStatus lidarStatus = ConnectionStatus.disconnected;
 
   double batteryVoltage = 0.0;
@@ -27,19 +26,11 @@ class RobotStatus extends ChangeNotifier {
   List<Offset> get trajectory => List.unmodifiable(_trajectory);
 
   String controlErrorMsg = '';
-  String videoErrorMsg = '';
   String lidarErrorMsg = '';
 
   void updateControlStatus(ConnectionStatus s) {
     if (controlStatus != s) {
       controlStatus = s;
-      notifyListeners();
-    }
-  }
-
-  void updateVideoStatus(ConnectionStatus s) {
-    if (videoStatus != s) {
-      videoStatus = s;
       notifyListeners();
     }
   }

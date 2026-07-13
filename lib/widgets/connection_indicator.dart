@@ -11,9 +11,6 @@ class ConnectionIndicator extends StatelessWidget {
     final cs = context.select<RobotStatus, ConnectionStatus>(
       (s) => s.controlStatus,
     );
-    final vs = context.select<RobotStatus, ConnectionStatus>(
-      (s) => s.videoStatus,
-    );
     final ls = context.select<RobotStatus, ConnectionStatus>(
       (s) => s.lidarStatus,
     );
@@ -22,8 +19,6 @@ class ConnectionIndicator extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _Dot(color: _color(cs)),
-        const SizedBox(width: 5),
-        _Dot(color: _color(vs)),
         const SizedBox(width: 5),
         _Dot(color: _color(ls)),
       ],

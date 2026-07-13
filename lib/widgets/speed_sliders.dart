@@ -1,5 +1,4 @@
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Material, MaterialType, Slider, SliderTheme, SliderThemeData, RoundSliderThumbShape, RoundSliderOverlayShape;
 import 'package:provider/provider.dart';
 
 import '../models/robot_status.dart';
@@ -17,27 +16,29 @@ class SpeedSliders extends StatelessWidget {
 
     return Opacity(
       opacity: connected ? 1.0 : 0.4,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _CompactSlider(
-            label: '线速度',
-            value: control.maxLinear,
-            max: 0.5,
-            suffix: control.maxLinear.toStringAsFixed(2),
-            onChanged: connected ? (v) => control.setSpeedLimits(linear: v) : null,
-          ),
-          const SizedBox(height: 10),
-          _CompactSlider(
-            label: '角速度',
-            value: control.maxAngular,
-            max: 1.0,
-            suffix: control.maxAngular.toStringAsFixed(2),
-            onChanged:
-                connected ? (v) => control.setSpeedLimits(angular: v) : null,
-          ),
-        ],
+      child: AbsorbPointer(
+        absorbing: !connected,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _CompactSlider(
+              label: '线速度',
+              value: control.maxLinear,
+              max: 0.5,
+              suffix: control.maxLinear.toStringAsFixed(2),
+              onChanged: (v) => control.setSpeedLimits(linear: v),
+            ),
+            const SizedBox(height: 6),
+            _CompactSlider(
+              label: '角速度',
+              value: control.maxAngular,
+              max: 1.0,
+              suffix: control.maxAngular.toStringAsFixed(2),
+              onChanged: (v) => control.setSpeedLimits(angular: v),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -56,7 +57,7 @@ class _CompactSlider extends StatelessWidget {
   final double value;
   final double max;
   final String suffix;
-  final ValueChanged<double>? onChanged;
+  final ValueChanged<double> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -83,28 +84,12 @@ class _CompactSlider extends StatelessWidget {
             ),
           ],
         ),
-        SizedBox(
-          height: 24,
-          child: Material(
-            type: MaterialType.transparency,
-            child: SliderTheme(
-              data: const SliderThemeData(
-                trackHeight: 3,
-                activeTrackColor: Color(0xFF2563A8),
-                inactiveTrackColor: Color(0xFFD8D8DC),
-                thumbColor: Color(0xFF2563A8),
-                overlayColor: Color(0x1F2563A8),
-                thumbShape: RoundSliderThumbShape(enabledThumbRadius: 7),
-                overlayShape: RoundSliderOverlayShape(overlayRadius: 14),
-              ),
-              child: Slider(
-                value: value,
-                min: 0.0,
-                max: max,
-                onChanged: onChanged,
-              ),
-            ),
-          ),
+        CupertinoSlider(
+          value: value,
+          min: 0.0,
+          max: max,
+          activeColor: const Color(0xFF2563A8),
+          onChanged: onChanged,
         ),
       ],
     );

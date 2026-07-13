@@ -6,7 +6,6 @@ import 'models/robot_status.dart';
 import 'screens/home_screen.dart';
 import 'services/control_service.dart';
 import 'services/lidar_service.dart';
-import 'services/video_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,9 +23,6 @@ class OriginBotApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => RobotStatus()),
         ChangeNotifierProvider(
           create: (ctx) => ControlService(ctx.read<RobotStatus>()),
-        ),
-        ChangeNotifierProvider(
-          create: (ctx) => VideoService(ctx.read<RobotStatus>()),
         ),
         ChangeNotifierProvider(
           create: (ctx) => LidarService(ctx.read<RobotStatus>()),
