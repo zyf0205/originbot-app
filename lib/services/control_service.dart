@@ -15,6 +15,9 @@ class ControlService extends ChangeNotifier {
   WebSocketChannel? _channel;
   Timer? _publishTimer;
   bool _disposed = false;
+  bool _userDisconnected = false;
+  int _watchdogCounter = 0;
+  static const int _watchdogThreshold = 60;
   String _ip = IpHistory.lastIp;
 
   double _inputX = 0.0;
@@ -47,6 +50,7 @@ class ControlService extends ChangeNotifier {
   }
 
   Future<void> connect() async {
+    _userDisconnected = false;
     final ip = _ip;
     if (ip.isEmpty) return;
     final err = validateIp(ip);
@@ -80,6 +84,7 @@ class ControlService extends ChangeNotifier {
   }
 
   void _onMessage(dynamic raw) {
+    _watchdogCounter = 0;
     try {
       final data = jsonDecode(raw as String) as Map<String, dynamic>;
       final type = data['type'] as String?;
@@ -113,6 +118,10 @@ class ControlService extends ChangeNotifier {
 
   void _startPublishing() {
     _publishTimer?.cancel();
+    _watchdogCounter = 0;
+    try {
+      _channel?.sink.add(jsonEncode({'type': 'stop'}));
+    } catch (_) {}
     _publishTimer = Timer.periodic(
       const Duration(milliseconds: 50),
       (_) => _publishTick(),
@@ -121,14 +130,25 @@ class ControlService extends ChangeNotifier {
 
   void _publishTick() {
     if (status.controlStatus != ConnectionStatus.connected) return;
+
+    _watchdogCounter++;
+    if (_watchdogCounter > _watchdogThreshold) {
+      _handleDeadConnection();
+      return;
+    }
+
     final linearX = -_inputY * maxLinear;
     final angularZ = -_inputX * maxAngular;
-    _channel?.sink.add(jsonEncode({
-      'type': 'cmd_vel',
-      'linear_x': linearX,
-      'linear_y': 0.0,
-      'angular_z': angularZ,
-    }));
+    try {
+      _channel?.sink.add(jsonEncode({
+        'type': 'cmd_vel',
+        'linear_x': linearX,
+        'linear_y': 0.0,
+        'angular_z': angularZ,
+      }));
+    } catch (_) {
+      _handleDeadConnection();
+    }
   }
 
   void updateInput(double horizontal, double vertical) {
@@ -145,19 +165,29 @@ class ControlService extends ChangeNotifier {
     _inputX = 0.0;
     _inputY = 0.0;
     if (status.controlStatus == ConnectionStatus.connected) {
-      _channel?.sink.add(jsonEncode({'type': 'stop'}));
+      try {
+        _channel?.sink.add(jsonEncode({'type': 'stop'}));
+      } catch (_) {}
     }
   }
 
   void sendBuzzer(bool on) {
     if (status.controlStatus != ConnectionStatus.connected) return;
-    _channel?.sink.add(jsonEncode({'type': 'buzzer', 'on': on}));
+    try {
+      _channel?.sink.add(jsonEncode({'type': 'buzzer', 'on': on}));
+    } catch (_) {
+      return;
+    }
     status.updateStatus(buzzerOn: on);
   }
 
   void sendLed(bool on) {
     if (status.controlStatus != ConnectionStatus.connected) return;
-    _channel?.sink.add(jsonEncode({'type': 'led', 'on': on}));
+    try {
+      _channel?.sink.add(jsonEncode({'type': 'led', 'on': on}));
+    } catch (_) {
+      return;
+    }
     status.updateStatus(ledOn: on);
   }
 
@@ -165,6 +195,24 @@ class ControlService extends ChangeNotifier {
     if (linear != null) maxLinear = linear.clamp(0.0, 0.5);
     if (angular != null) maxAngular = angular.clamp(0.0, 1.0);
     notifyListeners();
+  }
+
+  void _handleDeadConnection() {
+    if (_disposed) return;
+    _publishTimer?.cancel();
+    _publishTimer = null;
+    _inputX = 0.0;
+    _inputY = 0.0;
+    try {
+      _channel?.sink.add(jsonEncode({'type': 'stop'}));
+    } catch (_) {}
+    _channel?.sink.close();
+    _channel = null;
+    status.resetOdom();
+    status.updateControlStatus(ConnectionStatus.disconnected);
+    if (!_userDisconnected && !_disposed) {
+      connect();
+    }
   }
 
   void _onDisconnect() {
@@ -175,9 +223,13 @@ class ControlService extends ChangeNotifier {
     _inputY = 0.0;
     status.resetOdom();
     status.updateControlStatus(ConnectionStatus.disconnected);
+    if (!_userDisconnected && !_disposed) {
+      connect();
+    }
   }
 
   void disconnect() {
+    _userDisconnected = true;
     _publishTimer?.cancel();
     _publishTimer = null;
     _channel?.sink.close();

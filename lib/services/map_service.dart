@@ -75,6 +75,20 @@ class MapService extends ChangeNotifier {
     return ui.Color.fromARGB(255, gray, gray, gray);
   });
 
+  static final _rgbaTable = _buildRgbaTable();
+
+  static Uint8List _buildRgbaTable() {
+    final table = Uint8List(256 * 4);
+    for (var v = 0; v < 256; v++) {
+      final c = _colorTable[v].toARGB32();
+      table[v * 4] = (c >> 16) & 0xff;
+      table[v * 4 + 1] = (c >> 8) & 0xff;
+      table[v * 4 + 2] = c & 0xff;
+      table[v * 4 + 3] = (c >> 24) & 0xff;
+    }
+    return table;
+  }
+
   void setIp(String ip) {
     _ip = ip.trim();
   }
@@ -156,34 +170,35 @@ class MapService extends ChangeNotifier {
     } catch (_) {}
   }
 
-  Future<void> _regenerateImage() async {
+  void _regenerateImage() {
     if (currentMap == null) return;
     final m = currentMap!;
     final genId = ++_imageGenId;
 
-    final recorder = ui.PictureRecorder();
-    final canvas = ui.Canvas(recorder);
-    final paint = ui.Paint()..style = ui.PaintingStyle.fill;
+    final imgH = m.height;
+    final imgW = m.width;
+    final buffer = Uint8List(imgW * imgH * 4);
+    final rgba = _rgbaTable;
 
-    final pathsByValue = <int, ui.Path>{};
     for (var row = 0; row < m.height; row++) {
+      final rowBase = row * m.width;
       for (var col = 0; col < m.width; col++) {
-        final v = m.grid[row * m.width + col];
-        if (v == 0) continue;
-        pathsByValue
-            .putIfAbsent(v, () => ui.Path())
-            .addRect(ui.Rect.fromLTWH(row.toDouble(), col.toDouble(), 1, 1));
+        final v = m.grid[rowBase + col];
+        final srcOff = v * 4;
+        final dstIdx = (col * imgH + row) * 4;
+        buffer[dstIdx] = rgba[srcOff];
+        buffer[dstIdx + 1] = rgba[srcOff + 1];
+        buffer[dstIdx + 2] = rgba[srcOff + 2];
+        buffer[dstIdx + 3] = rgba[srcOff + 3];
       }
     }
 
-    for (final entry in pathsByValue.entries) {
-      paint.color = _colorTable[entry.key];
-      canvas.drawPath(entry.value, paint);
-    }
-
-    final picture = recorder.endRecording();
-    final image = await picture.toImage(m.height, m.width);
-    picture.dispose();
+    final image = ui.decodeImageFromPixelsSync(
+      buffer,
+      imgH,
+      imgW,
+      ui.PixelFormat.rgba8888,
+    );
 
     if (genId != _imageGenId || _disposed) {
       image.dispose();
@@ -225,18 +240,22 @@ class MapService extends ChangeNotifier {
     final baseY = hasCorrection ? correctionY : 0.0;
     final baseYaw = hasCorrection ? correctionYaw : 0.0;
 
-    double bestScore = -1;
-    double bestX = baseX, bestY = baseY, bestYaw = baseYaw;
+    // Phase 1: coarse search
+    var bestScore = -999999.0;
+    var bestX = baseX;
+    var bestY = baseY;
+    var bestYaw = baseYaw;
 
-    for (var yi = -5; yi <= 5; yi++) {
-      final dyaw = baseYaw + yi * 0.03;
+    for (var yi = -3; yi <= 3; yi++) {
+      final dyaw = baseYaw + yi * 0.1;
       final cosC = math.cos(dyaw);
       final sinC = math.sin(dyaw);
-      for (var xi = -8; xi <= 8; xi++) {
-        final dx = baseX + xi * 0.1;
-        for (var yj = -8; yj <= 8; yj++) {
-          final dy = baseY + yj * 0.1;
-          var score = 0;
+      for (var xi = -10; xi <= 10; xi++) {
+        final dx = baseX + xi * 0.2;
+        for (var yj = -10; yj <= 10; yj++) {
+          final dy = baseY + yj * 0.2;
+          var occupied = 0;
+          var free = 0;
           for (var i = 0; i < odomCoords.length; i += 2) {
             final ox = odomCoords[i];
             final oy = odomCoords[i + 1];
@@ -246,9 +265,14 @@ class MapService extends ChangeNotifier {
             final row = ((my - m.originY) * resInv).toInt();
             if (col >= 0 && col < m.width && row >= 0 && row < m.height) {
               final v = m.grid[row * m.width + col];
-              if (v >= 100 && v < 255) score++;
+              if (v >= 100 && v < 255) {
+                occupied++;
+              } else if (v == 0) {
+                free++;
+              }
             }
           }
+          final score = occupied - free;
           if (score > bestScore) {
             bestScore = score.toDouble();
             bestX = dx;
@@ -259,7 +283,45 @@ class MapService extends ChangeNotifier {
       }
     }
 
-    if (bestScore >= 5) {
+    // Phase 2: fine search around phase 1 best
+    for (var yi = -4; yi <= 4; yi++) {
+      final dyaw = bestYaw + yi * 0.02;
+      final cosC = math.cos(dyaw);
+      final sinC = math.sin(dyaw);
+      for (var xi = -4; xi <= 4; xi++) {
+        final dx = bestX + xi * 0.05;
+        for (var yj = -4; yj <= 4; yj++) {
+          final dy = bestY + yj * 0.05;
+          var occupied = 0;
+          var free = 0;
+          for (var i = 0; i < odomCoords.length; i += 2) {
+            final ox = odomCoords[i];
+            final oy = odomCoords[i + 1];
+            final mx = ox * cosC - oy * sinC + dx;
+            final my = ox * sinC + oy * cosC + dy;
+            final col = ((mx - m.originX) * resInv).toInt();
+            final row = ((my - m.originY) * resInv).toInt();
+            if (col >= 0 && col < m.width && row >= 0 && row < m.height) {
+              final v = m.grid[row * m.width + col];
+              if (v >= 100 && v < 255) {
+                occupied++;
+              } else if (v == 0) {
+                free++;
+              }
+            }
+          }
+          final score = occupied - free;
+          if (score > bestScore) {
+            bestScore = score.toDouble();
+            bestX = dx;
+            bestY = dy;
+            bestYaw = dyaw;
+          }
+        }
+      }
+    }
+
+    if (bestScore >= 3) {
       correctionX = bestX;
       correctionY = bestY;
       correctionYaw = bestYaw;
