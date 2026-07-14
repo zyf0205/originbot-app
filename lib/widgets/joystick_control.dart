@@ -21,15 +21,15 @@ class JoystickControl extends StatelessWidget {
         ignoring: !connected,
         child: Joystick(
           mode: JoystickMode.all,
-          period: const Duration(milliseconds: 100),
+          period: const Duration(milliseconds: 30),
           includeInitialAnimation: false,
           listener: (StickDragDetails details) {
             control.updateInput(details.x, details.y);
           },
           onStickDragEnd: () => control.releaseInput(),
           base: Container(
-            width: 120,
-            height: 120,
+            width: 140,
+            height: 140,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: const Color(0xFFE8E8EC),
@@ -53,8 +53,8 @@ class JoystickControl extends StatelessWidget {
             ),
           ),
           stick: Container(
-            width: 46,
-            height: 46,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: const LinearGradient(

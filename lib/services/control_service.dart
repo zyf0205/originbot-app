@@ -114,7 +114,7 @@ class ControlService extends ChangeNotifier {
   void _startPublishing() {
     _publishTimer?.cancel();
     _publishTimer = Timer.periodic(
-      const Duration(milliseconds: 100),
+      const Duration(milliseconds: 50),
       (_) => _publishTick(),
     );
   }
@@ -173,6 +173,7 @@ class ControlService extends ChangeNotifier {
     _publishTimer = null;
     _inputX = 0.0;
     _inputY = 0.0;
+    status.resetOdom();
     status.updateControlStatus(ConnectionStatus.disconnected);
   }
 
@@ -183,6 +184,7 @@ class ControlService extends ChangeNotifier {
     _channel = null;
     _inputX = 0.0;
     _inputY = 0.0;
+    status.resetOdom();
     status.updateControlStatus(ConnectionStatus.disconnected);
   }
 

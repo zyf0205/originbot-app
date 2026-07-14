@@ -8,6 +8,7 @@ enum ConnectionStatus { disconnected, connecting, connected, error }
 class RobotStatus extends ChangeNotifier {
   ConnectionStatus controlStatus = ConnectionStatus.disconnected;
   ConnectionStatus lidarStatus = ConnectionStatus.disconnected;
+  ConnectionStatus mapStatus = ConnectionStatus.disconnected;
 
   double batteryVoltage = 0.0;
   bool buzzerOn = false;
@@ -22,11 +23,13 @@ class RobotStatus extends ChangeNotifier {
   double vth = 0.0;
 
   final List<Offset> _trajectory = [];
+  List<Offset> _trajectoryView = const [];
   static const int _maxTrajectoryPoints = 500;
-  List<Offset> get trajectory => List.unmodifiable(_trajectory);
+  List<Offset> get trajectory => _trajectoryView;
 
   String controlErrorMsg = '';
   String lidarErrorMsg = '';
+  String mapErrorMsg = '';
 
   void updateControlStatus(ConnectionStatus s) {
     if (controlStatus != s) {
@@ -38,6 +41,13 @@ class RobotStatus extends ChangeNotifier {
   void updateLidarStatus(ConnectionStatus s) {
     if (lidarStatus != s) {
       lidarStatus = s;
+      notifyListeners();
+    }
+  }
+
+  void updateMapStatus(ConnectionStatus s) {
+    if (mapStatus != s) {
+      mapStatus = s;
       notifyListeners();
     }
   }
@@ -82,6 +92,7 @@ class RobotStatus extends ChangeNotifier {
       if (_trajectory.length > _maxTrajectoryPoints) {
         _trajectory.removeAt(0);
       }
+      _trajectoryView = List.unmodifiable(_trajectory);
     }
 
     notifyListeners();
@@ -95,6 +106,7 @@ class RobotStatus extends ChangeNotifier {
     vy = 0.0;
     vth = 0.0;
     _trajectory.clear();
+    _trajectoryView = const [];
     notifyListeners();
   }
 }

@@ -6,6 +6,7 @@ import 'models/robot_status.dart';
 import 'screens/home_screen.dart';
 import 'services/control_service.dart';
 import 'services/lidar_service.dart';
+import 'services/map_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,6 +27,12 @@ class OriginBotApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (ctx) => LidarService(ctx.read<RobotStatus>()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => MapService(
+            ctx.read<RobotStatus>(),
+            ctx.read<LidarService>(),
+          ),
         ),
       ],
       child: CupertinoApp(

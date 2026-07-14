@@ -8,16 +8,23 @@ class PointCloudPainter extends CustomPainter {
     required this.scale,
     required this.rangeMin,
     required this.rangeMax,
+    this.panX = 0.0,
+    this.panY = 0.0,
   });
 
   final List<Offset> points;
   final double scale;
   final double rangeMin;
   final double rangeMax;
+  final double panX;
+  final double panY;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
+    final center = Offset(
+      size.width / 2 + panX,
+      size.height / 2 + panY,
+    );
 
     _drawGrid(canvas, size, center);
     _drawRangeCircles(canvas, center);
@@ -31,13 +38,18 @@ class PointCloudPainter extends CustomPainter {
       ..color = const Color(0xFFE8E8ED)
       ..strokeWidth = 0.5;
 
-    final step = scale; // 1 米一格
-    for (var i = -20; i <= 20; i++) {
+    final step = scale;
+    final startIx = (-center.dx / step).floor() - 2;
+    final endIx = ((size.width - center.dx) / step).ceil() + 2;
+    for (var i = startIx; i <= endIx; i++) {
       final x = center.dx + i * step;
       if (x < 0 || x > size.width) continue;
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
     }
-    for (var i = -20; i <= 20; i++) {
+
+    final startIy = (-center.dy / step).floor() - 2;
+    final endIy = ((size.height - center.dy) / step).ceil() + 2;
+    for (var i = startIy; i <= endIy; i++) {
       final y = center.dy + i * step;
       if (y < 0 || y > size.height) continue;
       canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
@@ -77,24 +89,31 @@ class PointCloudPainter extends CustomPainter {
     final paint = Paint()
       ..color = const Color(0xFF2563A8)
       ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, 6.0, paint);
 
-    canvas.drawCircle(center, 5.0, paint);
+    final borderPaint = Paint()
+      ..color = const Color(0xFFFFFFFF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(center, 6.0, borderPaint);
 
     final arrowPaint = Paint()
       ..color = const Color(0xFF2563A8)
-      ..strokeWidth = 2.0
-      ..style = PaintingStyle.stroke;
-    // Arrow starts from circle edge (radius=5), not from center
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+
     final path = Path()
-      ..moveTo(center.dx, center.dy - 5.0)
-      ..lineTo(center.dx, center.dy - 12);
+      ..moveTo(center.dx, center.dy - 6.0)
+      ..lineTo(center.dx, center.dy - 16);
     canvas.drawPath(path, arrowPaint);
 
     canvas.drawPath(
       Path()
-        ..moveTo(center.dx - 4, center.dy - 8)
-        ..lineTo(center.dx, center.dy - 12)
-        ..lineTo(center.dx + 4, center.dy - 8),
+        ..moveTo(center.dx - 5, center.dy - 11)
+        ..lineTo(center.dx, center.dy - 16)
+        ..lineTo(center.dx + 5, center.dy - 11)
+        ..close(),
       Paint()
         ..color = const Color(0xFF2563A8)
         ..style = PaintingStyle.fill,
@@ -110,7 +129,6 @@ class PointCloudPainter extends CustomPainter {
 
     final screenPoints = <Offset>[];
     for (final p in points) {
-      // X(前方) → 屏幕上方, Y(左方) → 屏幕左方
       final screenX = center.dx - p.dy * scale;
       final screenY = center.dy - p.dx * scale;
       screenPoints.add(Offset(screenX, screenY));
@@ -123,6 +141,8 @@ class PointCloudPainter extends CustomPainter {
     return oldDelegate.points != points ||
         oldDelegate.scale != scale ||
         oldDelegate.rangeMin != rangeMin ||
-        oldDelegate.rangeMax != rangeMax;
+        oldDelegate.rangeMax != rangeMax ||
+        oldDelegate.panX != panX ||
+        oldDelegate.panY != panY;
   }
 }
