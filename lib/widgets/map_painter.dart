@@ -26,10 +26,6 @@ class OccupancyMapPainter extends CustomPainter {
     required this.scale,
     this.panX = 0.0,
     this.panY = 0.0,
-    this.correctionX = 0.0,
-    this.correctionY = 0.0,
-    this.correctionYaw = 0.0,
-    this.hasCorrection = false,
   });
 
   final OccupancyMap? map;
@@ -42,10 +38,6 @@ class OccupancyMapPainter extends CustomPainter {
   final double scale;
   final double panX;
   final double panY;
-  final double correctionX;
-  final double correctionY;
-  final double correctionYaw;
-  final bool hasCorrection;
 
   Offset _worldToScreen(double wx, double wy, Offset origin) {
     return Offset(
@@ -70,20 +62,14 @@ class OccupancyMapPainter extends CustomPainter {
     _drawRobot(canvas, origin);
   }
 
-  // ── Occupancy grid (cached image) ───────────────────────────────
-
   void _drawMap(Canvas canvas, Offset origin) {
     if (mapImage == null || map == null) return;
     final m = map!;
     final cellSize = m.resolution * scale;
 
-    // Screen position of the map's world origin (cell 0,0)
     final mapOriginScreenX = origin.dx - m.originY * scale;
     final mapOriginScreenY = origin.dy - m.originX * scale;
 
-    // The image was rendered with x=row, y=col.
-    // Both axes are inverted in the world->screen mapping, so we
-    // translate to the map origin and scale negatively.
     final paint = Paint();
 
     canvas.save();
@@ -92,8 +78,6 @@ class OccupancyMapPainter extends CustomPainter {
     canvas.drawImage(mapImage!, Offset.zero, paint);
     canvas.restore();
   }
-
-  // ── Reference grid (1 m spacing) ────────────────────────────────
 
   void _drawGrid(Canvas canvas, Size size, Offset origin) {
     final paint = Paint()
@@ -119,8 +103,6 @@ class OccupancyMapPainter extends CustomPainter {
     }
   }
 
-  // ── World axes ─────────────────────────────────────────────────
-
   void _drawAxes(Canvas canvas, Size size, Offset origin) {
     final paint = Paint()
       ..color = const Color(0x55888888)
@@ -144,8 +126,6 @@ class OccupancyMapPainter extends CustomPainter {
     }
   }
 
-  // ── Start-point marker ──────────────────────────────────────────
-
   void _drawOriginMarker(Canvas canvas, Offset origin) {
     final p = _worldToScreen(0, 0, origin);
 
@@ -164,8 +144,6 @@ class OccupancyMapPainter extends CustomPainter {
     );
   }
 
-  // ── Trajectory path ────────────────────────────────────────────
-
   void _drawTrajectory(Canvas canvas, Offset origin) {
     if (trajectory.length < 2) return;
 
@@ -175,20 +153,9 @@ class OccupancyMapPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;
 
-    final cosC = hasCorrection ? math.cos(correctionYaw) : 1.0;
-    final sinC = hasCorrection ? math.sin(correctionYaw) : 0.0;
-
     final path = Path();
     for (var i = 0; i < trajectory.length; i++) {
-      var tx = trajectory[i].dx;
-      var ty = trajectory[i].dy;
-      if (hasCorrection) {
-        final mx = tx * cosC - ty * sinC + correctionX;
-        final my = tx * sinC + ty * cosC + correctionY;
-        tx = mx;
-        ty = my;
-      }
-      final s = _worldToScreen(tx, ty, origin);
+      final s = _worldToScreen(trajectory[i].dx, trajectory[i].dy, origin);
       if (i == 0) {
         path.moveTo(s.dx, s.dy);
       } else {
@@ -197,8 +164,6 @@ class OccupancyMapPainter extends CustomPainter {
     }
     canvas.drawPath(path, paint);
   }
-
-  // ── Laser scan (robot frame -> world) ───────────────────────────
 
   void _drawScanPoints(Canvas canvas, Offset origin) {
     if (scanPoints.isEmpty) return;
@@ -219,8 +184,6 @@ class OccupancyMapPainter extends CustomPainter {
     }
     canvas.drawPoints(ui.PointMode.points, screenPoints, paint);
   }
-
-  // ── Robot marker ───────────────────────────────────────────────
 
   void _drawRobot(Canvas canvas, Offset origin) {
     final robotScreen = _worldToScreen(robotX, robotY, origin);
@@ -283,10 +246,6 @@ class OccupancyMapPainter extends CustomPainter {
         old.robotYaw != robotYaw ||
         old.scale != scale ||
         old.panX != panX ||
-        old.panY != panY ||
-        old.correctionX != correctionX ||
-        old.correctionY != correctionY ||
-        old.correctionYaw != correctionYaw ||
-        old.hasCorrection != hasCorrection;
+        old.panY != panY;
   }
 }

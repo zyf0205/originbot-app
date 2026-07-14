@@ -254,19 +254,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final mapService = context.watch<MapService>();
     final lidar = context.watch<LidarService>();
-    final (_, _, _, trajectory) =
+    final (dispX, dispY, dispYaw, trajectory) =
         context.select<RobotStatus, (double, double, double, List<Offset>)>(
-      (s) => (s.odomX, s.odomY, s.odomYaw, s.trajectory),
+      (s) => (s.displayX, s.displayY, s.displayYaw, s.trajectory),
     );
 
-    final correctedX = mapService.correctedX;
-    final correctedY = mapService.correctedY;
-    final correctedYaw = mapService.correctedYaw;
-
     final effectivePanX =
-        _followRobot ? correctedY * _scale : _pan.dx;
+        _followRobot ? dispY * _scale : _pan.dx;
     final effectivePanY =
-        _followRobot ? correctedX * _scale : _pan.dy;
+        _followRobot ? dispX * _scale : _pan.dy;
 
     return GestureDetector(
       onScaleStart: (_) {
@@ -292,16 +288,12 @@ class _HomeScreenState extends State<HomeScreen> {
               mapImage: mapService.mapImage,
               scanPoints: lidar.points,
               trajectory: trajectory,
-              robotX: correctedX,
-              robotY: correctedY,
-              robotYaw: correctedYaw,
+              robotX: dispX,
+              robotY: dispY,
+              robotYaw: dispYaw,
               scale: _scale,
               panX: effectivePanX,
               panY: effectivePanY,
-              correctionX: mapService.correctionX,
-              correctionY: mapService.correctionY,
-              correctionYaw: mapService.correctionYaw,
-              hasCorrection: mapService.hasCorrection,
             ),
             child: const SizedBox.expand(),
           ),

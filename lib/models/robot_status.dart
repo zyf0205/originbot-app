@@ -18,6 +18,15 @@ class RobotStatus extends ChangeNotifier {
   double odomY = 0.0;
   double odomYaw = 0.0;
 
+  double mapX = 0.0;
+  double mapY = 0.0;
+  double mapYaw = 0.0;
+  bool hasMapPose = false;
+
+  double get displayX => hasMapPose ? mapX : odomX;
+  double get displayY => hasMapPose ? mapY : odomY;
+  double get displayYaw => hasMapPose ? mapYaw : odomYaw;
+
   double vx = 0.0;
   double vy = 0.0;
   double vth = 0.0;
@@ -73,6 +82,9 @@ class RobotStatus extends ChangeNotifier {
     double? vx,
     double? vy,
     double? vth,
+    double? mapX,
+    double? mapY,
+    double? mapYaw,
   }) {
     if (x != null) odomX = x;
     if (y != null) odomY = y;
@@ -85,8 +97,17 @@ class RobotStatus extends ChangeNotifier {
     if (vy != null) this.vy = vy;
     if (vth != null) this.vth = vth;
 
+    if (mapX != null) this.mapX = mapX;
+    if (mapY != null) this.mapY = mapY;
+    if (mapYaw != null) {
+      this.mapYaw = mapYaw;
+      hasMapPose = true;
+    }
+
+    final poseX = hasMapPose ? this.mapX : odomX;
+    final poseY = hasMapPose ? this.mapY : odomY;
     final lastPoint = _trajectory.isNotEmpty ? _trajectory.last : null;
-    final newPoint = Offset(odomX, odomY);
+    final newPoint = Offset(poseX, poseY);
     if (lastPoint == null || (lastPoint - newPoint).distance > 0.01) {
       _trajectory.add(newPoint);
       if (_trajectory.length > _maxTrajectoryPoints) {
@@ -102,6 +123,10 @@ class RobotStatus extends ChangeNotifier {
     odomX = 0.0;
     odomY = 0.0;
     odomYaw = 0.0;
+    mapX = 0.0;
+    mapY = 0.0;
+    mapYaw = 0.0;
+    hasMapPose = false;
     vx = 0.0;
     vy = 0.0;
     vth = 0.0;

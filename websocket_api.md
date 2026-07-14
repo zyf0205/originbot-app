@@ -37,16 +37,25 @@
   "qw": 0.7071,
   "vx": 0.2,
   "vy": 0.0,
-  "vth": 0.5
+  "vth": 0.5,
+  "map_x": 1.2300,
+  "map_y": -0.5700,
+  "map_yaw": 0.7854
 }
 ```
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `x`, `y` | float | 机器人位置（米），odom 坐标系 |
-| `qx`, `qy`, `qz`, `qw` | float | 姿态四元数 |
+| `qx`, `qy`, `qz`, `qw` | float | 姿态四元数（odom 坐标系） |
 | `vx`, `vy` | float | 线速度（m/s） |
 | `vth` | float | 角速度（rad/s） |
+| `map_x`, `map_y` | float | 机器人位置（米），**map 坐标系**（SLAM 修正后） |
+| `map_yaw` | float | 机器人朝向（弧度），**map 坐标系**（SLAM 修正后） |
+
+> **注意**：`map_x`/`map_y`/`map_yaw` 由 bridge 节点通过 TF 查询 `map→base_link` 变换获得。
+> 如果 SLAM 未运行或 TF 不可用，这三个字段可以省略，上位机会自动回退到 odom 坐标系。
+> `map_yaw` 直接提供弧度值（已从四元数转换为欧拉角 yaw）。
 
 #### 机器人状态（每 500ms 推送）
 

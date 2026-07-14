@@ -109,6 +109,9 @@ class ControlService extends ChangeNotifier {
             vx: (data['vx'] as num?)?.toDouble(),
             vy: (data['vy'] as num?)?.toDouble(),
             vth: (data['vth'] as num?)?.toDouble(),
+            mapX: (data['map_x'] as num?)?.toDouble(),
+            mapY: (data['map_y'] as num?)?.toDouble(),
+            mapYaw: (data['map_yaw'] as num?)?.toDouble(),
           );
         case 'error':
           status.controlErrorMsg = data['msg']?.toString() ?? '未知错误';

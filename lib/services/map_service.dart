@@ -1,15 +1,11 @@
-import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as math;
 import 'dart:ui' as ui;
-import 'dart:ui' show Offset;
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../models/robot_status.dart';
-import 'lidar_service.dart';
 
 class OccupancyMap {
   final int width;
@@ -32,10 +28,9 @@ class OccupancyMap {
 }
 
 class MapService extends ChangeNotifier {
-  MapService(this.status, this.lidar);
+  MapService(this.status);
 
   final RobotStatus status;
-  final LidarService lidar;
 
   WebSocketChannel? _channel;
   bool _disposed = false;
@@ -44,28 +39,6 @@ class MapService extends ChangeNotifier {
 
   OccupancyMap? currentMap;
   ui.Image? mapImage;
-
-  double correctionX = 0.0;
-  double correctionY = 0.0;
-  double correctionYaw = 0.0;
-  bool hasCorrection = false;
-
-  double get correctedX {
-    if (!hasCorrection) return status.odomX;
-    final c = math.cos(correctionYaw);
-    final s = math.sin(correctionYaw);
-    return status.odomX * c - status.odomY * s + correctionX;
-  }
-
-  double get correctedY {
-    if (!hasCorrection) return status.odomY;
-    final c = math.cos(correctionYaw);
-    final s = math.sin(correctionYaw);
-    return status.odomX * s + status.odomY * c + correctionY;
-  }
-
-  double get correctedYaw =>
-      hasCorrection ? status.odomYaw + correctionYaw : status.odomYaw;
 
   static final _colorTable = List<ui.Color>.generate(256, (v) {
     if (v == 0) return const ui.Color(0x00000000);
@@ -101,10 +74,6 @@ class MapService extends ChangeNotifier {
     currentMap = null;
     mapImage?.dispose();
     mapImage = null;
-    correctionX = 0.0;
-    correctionY = 0.0;
-    correctionYaw = 0.0;
-    hasCorrection = false;
     status.updateMapStatus(ConnectionStatus.connecting);
     try {
       final uri = Uri.parse('ws://$_ip:9090/map');
@@ -166,7 +135,6 @@ class MapService extends ChangeNotifier {
       );
 
       _regenerateImage();
-      _runScanMatcher();
     } catch (_) {}
   }
 
@@ -211,134 +179,12 @@ class MapService extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _runScanMatcher() {
-    if (currentMap == null) return;
-    final scanPoints = lidar.points;
-    if (scanPoints.length < 10) return;
-
-    final m = currentMap!;
-    final odomX = status.odomX;
-    final odomY = status.odomY;
-    final odomYaw = status.odomYaw;
-
-    final subsampled = <Offset>[];
-    for (var i = 0; i < scanPoints.length; i += 3) {
-      subsampled.add(scanPoints[i]);
-    }
-    if (subsampled.length < 5) return;
-
-    final cosOdom = math.cos(odomYaw);
-    final sinOdom = math.sin(odomYaw);
-    final odomCoords = <double>[];
-    for (final p in subsampled) {
-      odomCoords.add(odomX + p.dx * cosOdom - p.dy * sinOdom);
-      odomCoords.add(odomY + p.dx * sinOdom + p.dy * cosOdom);
-    }
-
-    final resInv = 1.0 / m.resolution;
-    final baseX = hasCorrection ? correctionX : 0.0;
-    final baseY = hasCorrection ? correctionY : 0.0;
-    final baseYaw = hasCorrection ? correctionYaw : 0.0;
-
-    // Phase 1: coarse search
-    var bestScore = -999999.0;
-    var bestX = baseX;
-    var bestY = baseY;
-    var bestYaw = baseYaw;
-
-    for (var yi = -3; yi <= 3; yi++) {
-      final dyaw = baseYaw + yi * 0.1;
-      final cosC = math.cos(dyaw);
-      final sinC = math.sin(dyaw);
-      for (var xi = -10; xi <= 10; xi++) {
-        final dx = baseX + xi * 0.2;
-        for (var yj = -10; yj <= 10; yj++) {
-          final dy = baseY + yj * 0.2;
-          var occupied = 0;
-          var free = 0;
-          for (var i = 0; i < odomCoords.length; i += 2) {
-            final ox = odomCoords[i];
-            final oy = odomCoords[i + 1];
-            final mx = ox * cosC - oy * sinC + dx;
-            final my = ox * sinC + oy * cosC + dy;
-            final col = ((mx - m.originX) * resInv).toInt();
-            final row = ((my - m.originY) * resInv).toInt();
-            if (col >= 0 && col < m.width && row >= 0 && row < m.height) {
-              final v = m.grid[row * m.width + col];
-              if (v >= 100 && v < 255) {
-                occupied++;
-              } else if (v == 0) {
-                free++;
-              }
-            }
-          }
-          final score = occupied - free;
-          if (score > bestScore) {
-            bestScore = score.toDouble();
-            bestX = dx;
-            bestY = dy;
-            bestYaw = dyaw;
-          }
-        }
-      }
-    }
-
-    // Phase 2: fine search around phase 1 best
-    for (var yi = -4; yi <= 4; yi++) {
-      final dyaw = bestYaw + yi * 0.02;
-      final cosC = math.cos(dyaw);
-      final sinC = math.sin(dyaw);
-      for (var xi = -4; xi <= 4; xi++) {
-        final dx = bestX + xi * 0.05;
-        for (var yj = -4; yj <= 4; yj++) {
-          final dy = bestY + yj * 0.05;
-          var occupied = 0;
-          var free = 0;
-          for (var i = 0; i < odomCoords.length; i += 2) {
-            final ox = odomCoords[i];
-            final oy = odomCoords[i + 1];
-            final mx = ox * cosC - oy * sinC + dx;
-            final my = ox * sinC + oy * cosC + dy;
-            final col = ((mx - m.originX) * resInv).toInt();
-            final row = ((my - m.originY) * resInv).toInt();
-            if (col >= 0 && col < m.width && row >= 0 && row < m.height) {
-              final v = m.grid[row * m.width + col];
-              if (v >= 100 && v < 255) {
-                occupied++;
-              } else if (v == 0) {
-                free++;
-              }
-            }
-          }
-          final score = occupied - free;
-          if (score > bestScore) {
-            bestScore = score.toDouble();
-            bestX = dx;
-            bestY = dy;
-            bestYaw = dyaw;
-          }
-        }
-      }
-    }
-
-    if (bestScore >= 3) {
-      correctionX = bestX;
-      correctionY = bestY;
-      correctionYaw = bestYaw;
-      hasCorrection = true;
-    }
-  }
-
   void _onDisconnect() {
     if (_disposed) return;
     status.updateMapStatus(ConnectionStatus.disconnected);
     currentMap = null;
     mapImage?.dispose();
     mapImage = null;
-    correctionX = 0.0;
-    correctionY = 0.0;
-    correctionYaw = 0.0;
-    hasCorrection = false;
     notifyListeners();
   }
 
@@ -348,10 +194,6 @@ class MapService extends ChangeNotifier {
     currentMap = null;
     mapImage?.dispose();
     mapImage = null;
-    correctionX = 0.0;
-    correctionY = 0.0;
-    correctionYaw = 0.0;
-    hasCorrection = false;
     status.updateMapStatus(ConnectionStatus.disconnected);
     notifyListeners();
   }

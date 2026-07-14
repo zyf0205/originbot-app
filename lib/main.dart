@@ -29,10 +29,7 @@ class OriginBotApp extends StatelessWidget {
           create: (ctx) => LidarService(ctx.read<RobotStatus>()),
         ),
         ChangeNotifierProvider(
-          create: (ctx) => MapService(
-            ctx.read<RobotStatus>(),
-            ctx.read<LidarService>(),
-          ),
+          create: (ctx) => MapService(ctx.read<RobotStatus>()),
         ),
       ],
       child: CupertinoApp(
