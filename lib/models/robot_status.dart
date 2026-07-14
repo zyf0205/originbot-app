@@ -23,9 +23,20 @@ class RobotStatus extends ChangeNotifier {
   double mapYaw = 0.0;
   bool hasMapPose = false;
 
-  double get displayX => hasMapPose ? mapX : odomX;
-  double get displayY => hasMapPose ? mapY : odomY;
-  double get displayYaw => hasMapPose ? mapYaw : odomYaw;
+  // map→odom correction: a slowly-varying 2D rigid transform computed when a
+  // map pose arrives, then applied to real-time odom for latency-free display.
+  double _corrX = 0.0;
+  double _corrY = 0.0;
+  double _corrYaw = 0.0;
+  bool _hasCorrection = false;
+
+  double get displayX => _hasCorrection
+      ? odomX * cos(_corrYaw) - odomY * sin(_corrYaw) + _corrX
+      : odomX;
+  double get displayY => _hasCorrection
+      ? odomX * sin(_corrYaw) + odomY * cos(_corrYaw) + _corrY
+      : odomY;
+  double get displayYaw => _hasCorrection ? odomYaw + _corrYaw : odomYaw;
 
   double vx = 0.0;
   double vy = 0.0;
@@ -104,8 +115,20 @@ class RobotStatus extends ChangeNotifier {
       hasMapPose = true;
     }
 
-    final poseX = hasMapPose ? this.mapX : odomX;
-    final poseY = hasMapPose ? this.mapY : odomY;
+    // Recompute map→odom correction whenever a map pose is available.
+    // The correction drifts slowly, so even if the map pose is slightly stale
+    // (TF latency), applying it to real-time odom eliminates display lag.
+    if (hasMapPose) {
+      _corrYaw = _normalizeAngle(this.mapYaw - odomYaw);
+      final cosC = cos(_corrYaw);
+      final sinC = sin(_corrYaw);
+      _corrX = this.mapX - (odomX * cosC - odomY * sinC);
+      _corrY = this.mapY - (odomX * sinC + odomY * cosC);
+      _hasCorrection = true;
+    }
+
+    final poseX = displayX;
+    final poseY = displayY;
     final lastPoint = _trajectory.isNotEmpty ? _trajectory.last : null;
     final newPoint = Offset(poseX, poseY);
     if (lastPoint == null || (lastPoint - newPoint).distance > 0.01) {
@@ -127,11 +150,25 @@ class RobotStatus extends ChangeNotifier {
     mapY = 0.0;
     mapYaw = 0.0;
     hasMapPose = false;
+    _corrX = 0.0;
+    _corrY = 0.0;
+    _corrYaw = 0.0;
+    _hasCorrection = false;
     vx = 0.0;
     vy = 0.0;
     vth = 0.0;
     _trajectory.clear();
     _trajectoryView = const [];
     notifyListeners();
+  }
+
+  static double _normalizeAngle(double a) {
+    while (a > pi) {
+      a -= 2 * pi;
+    }
+    while (a < -pi) {
+      a += 2 * pi;
+    }
+    return a;
   }
 }

@@ -18,6 +18,10 @@ class ControlService extends ChangeNotifier {
   bool _userDisconnected = false;
   int _watchdogCounter = 0;
   static const int _watchdogThreshold = 60;
+  int _zeroInputMovingCounter = 0;
+  int _unresponsiveRetryCount = 0;
+  static const int _unresponsiveThreshold = 60; // 3s at 50ms
+  static const int _maxUnresponsiveRetries = 2;
   String _ip = IpHistory.lastIp;
 
   double _inputX = 0.0;
@@ -49,7 +53,8 @@ class ControlService extends ChangeNotifier {
     return null;
   }
 
-  Future<void> connect() async {
+  Future<void> connect({bool manual = true}) async {
+    if (manual) _unresponsiveRetryCount = 0;
     _userDisconnected = false;
     final ip = _ip;
     if (ip.isEmpty) return;
@@ -122,6 +127,7 @@ class ControlService extends ChangeNotifier {
   void _startPublishing() {
     _publishTimer?.cancel();
     _watchdogCounter = 0;
+    _zeroInputMovingCounter = 0;
     try {
       _channel?.sink.add(jsonEncode({'type': 'stop'}));
     } catch (_) {}
@@ -151,6 +157,42 @@ class ControlService extends ChangeNotifier {
       }));
     } catch (_) {
       _handleDeadConnection();
+      return;
+    }
+
+    // Detect unresponsive control channel: user released the joystick
+    // (zero input) but the robot is still moving. The bridge is likely
+    // still sending odom but not processing incoming cmd_vel commands.
+    if (_inputX == 0.0 && _inputY == 0.0 &&
+        (status.vx.abs() > 0.05 || status.vth.abs() > 0.05)) {
+      _zeroInputMovingCounter++;
+      if (_zeroInputMovingCounter >= _unresponsiveThreshold) {
+        _zeroInputMovingCounter = 0;
+        if (_unresponsiveRetryCount < _maxUnresponsiveRetries) {
+          _unresponsiveRetryCount++;
+          status.controlErrorMsg = '控制无响应，正在重连…';
+          _handleDeadConnection();
+        } else {
+          _publishTimer?.cancel();
+          _publishTimer = null;
+          _inputX = 0.0;
+          _inputY = 0.0;
+          try {
+            _channel?.sink.add(jsonEncode({'type': 'stop'}));
+          } catch (_) {}
+          _channel?.sink.close();
+          _channel = null;
+          status.controlErrorMsg = '控制持续无响应，请重启机器人桥接节点';
+          status.updateControlStatus(ConnectionStatus.error);
+        }
+        return;
+      }
+    } else {
+      _zeroInputMovingCounter = 0;
+      if (_inputX == 0.0 && _inputY == 0.0 &&
+          status.vx.abs() <= 0.05 && status.vth.abs() <= 0.05) {
+        _unresponsiveRetryCount = 0;
+      }
     }
   }
 
@@ -214,7 +256,7 @@ class ControlService extends ChangeNotifier {
     status.resetOdom();
     status.updateControlStatus(ConnectionStatus.disconnected);
     if (!_userDisconnected && !_disposed) {
-      connect();
+      connect(manual: false);
     }
   }
 
@@ -227,12 +269,14 @@ class ControlService extends ChangeNotifier {
     status.resetOdom();
     status.updateControlStatus(ConnectionStatus.disconnected);
     if (!_userDisconnected && !_disposed) {
-      connect();
+      connect(manual: false);
     }
   }
 
   void disconnect() {
     _userDisconnected = true;
+    _zeroInputMovingCounter = 0;
+    _unresponsiveRetryCount = 0;
     _publishTimer?.cancel();
     _publishTimer = null;
     _channel?.sink.close();
